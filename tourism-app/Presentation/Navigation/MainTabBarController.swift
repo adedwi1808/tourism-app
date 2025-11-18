@@ -8,20 +8,45 @@
 import UIKit
 
 class MainTabBarController: UITabBarController {
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupViewControllers()
+    }
+    
+    private func setupViewControllers() {
+        let homeVC = createHomeNavigation()
+        let profileVC = createProfileNavigation()
         
-        let homeViewModel: HomeViewModel = HomeViewModel()
-        let homeViewController: HomeViewController = HomeViewController(viewModel: homeViewModel)
-        let homeNavigationController = UINavigationController(rootViewController: homeViewController)
-        homeNavigationController.tabBarItem = UITabBarItem(title: "Home", image: UIImage(systemName: "house"), selectedImage: UIImage(systemName: "house.fill"))
+        viewControllers = [homeVC, profileVC]
+    }
+    
+    private func createHomeNavigation() -> UINavigationController {
+        let networkService: NetworkerProtocol = Networker()
+        let homeServices: HomeServicesProtocol = HomeServices(networker: networkService)
+        let homeViewModel = HomeViewModel(services: homeServices)
+        let homeVC = HomeViewController(viewModel: homeViewModel)
         
-        let profileViewModel: ProfileViewModel = ProfileViewModel()
-        let profileViewController = ProfileViewController(viewModel: profileViewModel)
-        let profileNavigationController = UINavigationController(rootViewController: profileViewController)
-        profileNavigationController.tabBarItem = UITabBarItem(title: "Profile", image: UIImage(systemName: "person"), selectedImage: UIImage(systemName: "person.fill"))
+        let nav = UINavigationController(rootViewController: homeVC)
+        nav.tabBarItem = UITabBarItem(
+            title: "Home",
+            image: UIImage(systemName: "house"),
+            selectedImage: UIImage(systemName: "house.fill")
+        )
+        return nav
+    }
+    
+    private func createProfileNavigation() -> UINavigationController {
+        let profileViewModel = ProfileViewModel()
+        let profileVC = ProfileViewController(viewModel: profileViewModel)
         
-        viewControllers = [homeNavigationController, profileNavigationController]
+        let nav = UINavigationController(rootViewController: profileVC)
+        nav.tabBarItem = UITabBarItem(
+            title: "Profile",
+            image: UIImage(systemName: "person"),
+            selectedImage: UIImage(systemName: "person.fill")
+        )
+        return nav
     }
 }
+

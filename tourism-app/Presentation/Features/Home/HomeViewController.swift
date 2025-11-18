@@ -14,6 +14,15 @@ class HomeViewController: UIViewController {
         return tableView
     }()
     
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .gray
+        spinner.hidesWhenStopped = true
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        return spinner
+    }()
+    
+    
     var viewModel: HomeViewModel?
     
     init(viewModel: HomeViewModel? = nil) {
@@ -27,33 +36,46 @@ class HomeViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        viewModel?.delegate = self
+        
         setupNavigationBar()
         setupView()
+        
+        fetchData()
+    }
+    
+    private func fetchData() {
+        Task.detached { [weak self] in
+            guard let self, let viewModel = await viewModel else { return }
+            await showLoading()
+            await viewModel.getTouristAttraction()
+        }
     }
     
     private func setupNavigationBar() {
         navigationItem.title = "Tourism-APP"
-
+        
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = .primary
         appearance.titleTextAttributes = [
             .foregroundColor: UIColor.white
         ]
-
+        
         navigationController?.navigationBar.standardAppearance = appearance
         navigationController?.navigationBar.scrollEdgeAppearance = appearance
         navigationController?.navigationBar.compactAppearance = appearance
-
+        
         navigationController?.navigationBar.tintColor = .white
     }
-
+    
     
     private func setupView() {
-        let views = [tableView]
+        let views = [tableView, loadingIndicator]
         
         for viewElement in views {
             self.view.addSubview(viewElement)
+            viewElement.translatesAutoresizingMaskIntoConstraints = false
         }
         
         tableView.separatorStyle = .none
@@ -62,14 +84,32 @@ class HomeViewController: UIViewController {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.register(TouristAttractionTableViewCell.self,
                            forCellReuseIdentifier: TouristAttractionTableViewCell.name)
-
+        
         NSLayoutConstraint.activate([
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        
+        NSLayoutConstraint.activate([
+            loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
     }
+    
+    private func showLoading() {
+        DispatchQueue.main.async {
+            self.loadingIndicator.startAnimating()
+        }
+    }
+    
+    private func hideLoading() {
+        DispatchQueue.main.async {
+            self.loadingIndicator.stopAnimating()
+        }
+    }
+    
 }
 
 extension HomeViewController: UITableViewDataSource {
@@ -86,7 +126,7 @@ extension HomeViewController: UITableViewDataSource {
             withIdentifier: TouristAttractionTableViewCell.name,
             for: indexPath
         ) as! TouristAttractionTableViewCell
-
+        
         cell.configure(with: data)
         return cell
     }
@@ -103,5 +143,26 @@ extension HomeViewController: UITableViewDelegate {
         touristAttraction.hidesBottomBarWhenPushed = true
         touristAttraction.configure(data: data)
         navigationController?.pushViewController(touristAttraction, animated: true)
+    }
+}
+
+extension HomeViewController: HomeViewModelProtocol {
+    func onSuccess() {
+        hideLoading()
+        tableView.reloadData()
+    }
+    
+    func onFailed(message: String) {
+        hideLoading()
+        
+        let alertController = UIAlertController(
+            title: "Failed to fetch data",
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        alertController.addAction(UIAlertAction(title: "OK", style: .default))
+        
+        present(alertController, animated: true)
     }
 }
